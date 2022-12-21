@@ -1,78 +1,114 @@
-    #include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h>
 
-    #define PIN 6
-    #define NUM_LEDS 300
+#define PIN 6
+#define NUM_LEDS 300
 
-    Adafruit_NeoPixel _strip;
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+
+void setup() 
+{
+  strip.begin();
+
+  showStrip();
+}
+
+void loop() 
+{
+  Fire(55, 120, 15, false);
+}
+
+void Fire(int Cooling, int Sparking, int SpeedDelay, bool Erupting) 
+{
+  static byte heat[NUM_LEDS];
+  int cooldown;
+  
+  // Step 1.  Cool down every cell a little
+  if (!Erupting)
+  {
+    for (int i = 0; i < NUM_LEDS; i++) 
+    {
+      cooldown = random(0, ((Cooling * 10) / NUM_LEDS) + 2);
+      
+      if (cooldown > heat[i]) 
+      {
+        heat[i] = 0;
+      } 
+      else 
+      {
+        heat[i] = heat[i] - cooldown;
+      }
+    }
+  }
+  
+  // Step 2.  Heat from each cell drifts 'down' and diffuses a little
+  for (int i = NUM_LEDS - 1; i >= 2; i--) 
+  {
+    heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
+  }
     
-    int _currentDropIndex;
-    int _currentDropPosition;
+  // Step 3.  Randomly ignite new 'sparks' near the top
+  if (random(255) < Sparking) 
+  {
+    int y = random(7);
 
-    void setup()
-    {
-        _strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+    heat[y] = heat[y] + random(160,255);
+    // heat[y] = random(160,255);
+  }
 
-        _strip.begin();
+  // Step 4.  Convert heat to LED colors
+  for (int i = 0; i < NUM_LEDS; i++) 
+  {
+    setPixelHeatColor(i, heat[i]);
+  }
 
-        clearAll();
+  showStrip();
 
-        _strip.show();
-    }
+  delay(SpeedDelay);
+}
 
-    void loop() 
-    {
-        updateDrop();
+void setPixelHeatColor (int Pixel, byte temperature) 
+{
+  // Scale 'heat' down from 0-255 to 0-191
+  byte t192 = round((temperature/255.0) * 191);
+ 
+  // calculate ramp up from
+  byte heatramp = t192 & 0x3F; // 0..63
+  heatramp <<= 2; // scale up to 0..252
+ 
+  // figure out which third of the spectrum we're in:
+  if (t192 > 0x80) 
+  {                     
+    // hottest
+    setPixel(Pixel, 255, 255, heatramp);
+  }
+  else if (t192 > 0x40) 
+  {             
+    // middle
+    setPixel(Pixel, 255, heatramp, 0);
+  } 
+  else 
+  {                               
+    // coolest
+    setPixel(Pixel, heatramp, 0, 0);
+  }
+}
 
-        _strip.show();
-    }
+void showStrip() 
+{
+  strip.show();
+}
 
-    void updateDrop()
-    {
-        if (_currentDropIndex == 0)
-        {
-            clearAll();
+void setPixel(int Pixel, byte green, byte red, byte blue) 
+{
+  strip.setPixelColor(Pixel, strip.Color(red, green, blue));
+}
 
-            return;
-        }
+void setAll(byte red, byte green, byte blue) 
+{
+  for (int i = 0; i < NUM_LEDS; i++) 
+  {
+    setPixel(i, red, green, blue); 
+  }
 
-        if (_currentDropPosition == _currentDropIndex)
-        {
-            _currentDropIndex--;
-            _currentDropPosition = 0;
-        }
-        else
-        {
-            setPixel (_currentDropPosition, 0, 0, 255);
-
-            if ( _currentDropPosition > 0)
-            {
-                setPixel (_currentDropPosition - 1, 0, 0, 0);
-            }
-        }
-        
-        _currentDropPosition++;
-    }
-
-    void clearAll()
-    {
-        for (int i = 0; i < NUM_LEDS; i++)
-        {
-            setPixel (i, 0, 0, 0);
-        }
-        
-        _currentDropIndex = NUM_LEDS;
-        _currentDropPosition = 6;
-    }
-
-    void joeBigGuns()
-    {
-        for (int i = 0; i < NUM_LEDS; i++)
-        {
-            setPixel (i, 255, 255, 255);
-        }
-    }
-
-    void setPixel (int Pixel, byte red, byte green, byte blue) 
-    {
-        _strip.setPixelColor(Pixel, _strip.Color(red, green, blue));
-    }
+  showStrip();
+}
