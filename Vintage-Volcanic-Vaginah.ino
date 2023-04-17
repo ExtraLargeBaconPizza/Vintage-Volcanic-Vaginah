@@ -1,114 +1,129 @@
-#include <Adafruit_NeoPixel.h>
+/*
+    Board: NodeMCU-ESP32s
+	Upload Speed: 921600
+	Pinout Reference: https://esphome.io/devices/nodemcu_esp32.html
 
-#define PIN 6
-#define NUM_LEDS 300
+    Notes:
+    - Cannot use addLeds in loop because the pin number must be a runtime constant. Gross, I know.
+    - Ensure esp32 is ground to psu, even if powered by seperate usb
+    - ws2815 are single direction. you must connect to it with a male JST SM
+    - Parrallel output  - writing to each pixel takes 30µs, so FastLED.show() takes a very long time because it has to iterate over all pixels and strips in series (ie one at a time)
+                        - parrallel will write to strips in parrallel and must be enabled
+                        - reddit explination: https://www.reddit.com/r/FastLED/comments/aqlb94/troubleshooting_slow_performance_tied_to/
+                        - https://github.com/FastLED/FastLED/wiki/Parallel-Output
+                        - solution: https://www.reddit.com/r/FastLED/comments/klw88g/are_there_magical_words_to_summon_parallel_output/
+    - pins used (green wire / blue wire):
+		- 18 / 5
+		- 17 / 16
+		- 4 / 0
+		- 2 / 15
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+		- 32 / 33
+		- 25 / 26
+		- 27 / 14
+		- 12 / 13
+*/
+
+#include <FastLED.h>
+
+// Enable parrallel output
+// #define FASTLED_ESP32_I2S true
+// #define FASTLED_RMT_MAX_CHANNELS 8
+
+#define COLOR_ORDER RGB
+#define CHIPSET     WS2811
+#define NUM_LEDS    300
+#define NUM_STRIPS 	8
+#define FRAMES_PER_SECOND 30
+
+CRGB leds[NUM_STRIPS][NUM_LEDS];
 
 void setup() 
 {
-  strip.begin();
-
-  showStrip();
+	addLeds();
 }
+
+void addLeds()
+{
+	//left side
+	FastLED.addLeds<CHIPSET, 18, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 5, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	
+	FastLED.addLeds<CHIPSET, 17, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 16, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	FastLED.addLeds<CHIPSET, 4, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 0, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	FastLED.addLeds<CHIPSET, 2, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 15, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	//right side
+	FastLED.addLeds<CHIPSET, 32, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 33, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	FastLED.addLeds<CHIPSET, 25, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 26, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	FastLED.addLeds<CHIPSET, 27, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 14, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+	FastLED.addLeds<CHIPSET, 12, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 13, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+}
+
 
 void loop() 
 {
-  Fire(55, 120, 15, false);
-}
-
-void Fire(int Cooling, int Sparking, int SpeedDelay, bool Erupting) 
-{
-  static byte heat[NUM_LEDS];
-  int cooldown;
-  
-  // Step 1.  Cool down every cell a little
-  if (!Erupting)
-  {
-    for (int i = 0; i < NUM_LEDS; i++) 
+    for (int i = 0; i < 8; i++)
     {
-      cooldown = random(0, ((Cooling * 10) / NUM_LEDS) + 2);
-      
-      if (cooldown > heat[i]) 
-      {
-        heat[i] = 0;
-      } 
-      else 
-      {
-        heat[i] = heat[i] - cooldown;
-      }
+        lava(i, 55, 120, false);
     }
-  }
-  
-  // Step 2.  Heat from each cell drifts 'down' and diffuses a little
-  for (int i = NUM_LEDS - 1; i >= 2; i--) 
-  {
-    heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
-  }
-    
-  // Step 3.  Randomly ignite new 'sparks' near the top
-  if (random(255) < Sparking) 
-  {
-    int y = random(7);
 
-    heat[y] = heat[y] + random(160,255);
-    // heat[y] = random(160,255);
-  }
-
-  // Step 4.  Convert heat to LED colors
-  for (int i = 0; i < NUM_LEDS; i++) 
-  {
-    setPixelHeatColor(i, heat[i]);
-  }
-
-  showStrip();
-
-  delay(SpeedDelay);
+    FastLED.show();
+    FastLED.delay(1000 / FRAMES_PER_SECOND);
 }
 
-void setPixelHeatColor (int Pixel, byte temperature) 
+void lava(int stripIndex, int cooling, int sparking, bool Erupting) 
 {
-  // Scale 'heat' down from 0-255 to 0-191
-  byte t192 = round((temperature/255.0) * 191);
- 
-  // calculate ramp up from
-  byte heatramp = t192 & 0x3F; // 0..63
-  heatramp <<= 2; // scale up to 0..252
- 
-  // figure out which third of the spectrum we're in:
-  if (t192 > 0x80) 
-  {                     
-    // hottest
-    setPixel(Pixel, 255, 255, heatramp);
-  }
-  else if (t192 > 0x40) 
-  {             
-    // middle
-    setPixel(Pixel, 255, heatramp, 0);
-  } 
-  else 
-  {                               
-    // coolest
-    setPixel(Pixel, heatramp, 0, 0);
-  }
-}
+	static byte heat[NUM_LEDS];
+	int cooldown;
+	
+	// Step 1.  Cool down every cell a little
+	if (!Erupting)
+	{
+		for (int i = 0; i < NUM_LEDS; i++) 
+		{
+			cooldown = random(0, ((cooling * 10) / NUM_LEDS) + 2);
+			
+			if (cooldown > heat[i]) 
+			{
+				heat[i] = 0;
+			} 
+			else 
+			{
+				heat[i] = heat[i] - cooldown;
+			}
+		}
+	}
+	
+	// Step 2.  Heat from each cell drifts 'down' and diffuses a little
+	for (int i = NUM_LEDS - 1; i >= 2; i--) 
+	{
+		heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
+	}
 
-void showStrip() 
-{
-  strip.show();
-}
+	// Step 3.  Randomly ignite new 'sparks' near the top
+	if (random(255) < sparking) 
+	{
+		int y = random(7);
 
-void setPixel(int Pixel, byte green, byte red, byte blue) 
-{
-  strip.setPixelColor(Pixel, strip.Color(red, green, blue));
-}
+		heat[y] = heat[y] + random(160,255);
+	}
 
-void setAll(byte red, byte green, byte blue) 
-{
-  for (int i = 0; i < NUM_LEDS; i++) 
-  {
-    setPixel(i, red, green, blue); 
-  }
-
-  showStrip();
+	// Step 4.  Convert heat to LED colors
+	for (int i = 0; i < NUM_LEDS; i++) 
+	{
+        leds[stripIndex][i] = HeatColor(heat[i]);
+	}
 }
