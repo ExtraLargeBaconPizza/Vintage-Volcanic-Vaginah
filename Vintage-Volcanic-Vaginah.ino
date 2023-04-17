@@ -13,8 +13,8 @@
                         - https://github.com/FastLED/FastLED/wiki/Parallel-Output
                         - solution: https://www.reddit.com/r/FastLED/comments/klw88g/are_there_magical_words_to_summon_parallel_output/
     - pins used (green wire / blue wire):
-		- 18 / 5
-		- 17 / 16
+		- 19 / 18 
+		- 5 / 17 
 		- 4 / 0
 		- 2 / 15
 
@@ -34,76 +34,80 @@
 #define CHIPSET     WS2811
 #define NUM_LEDS    300
 #define NUM_STRIPS 	8
-#define FRAMES_PER_SECOND 60
 
 #define COOLING 55
 #define SPARKLING 120
 
-CRGB leds[NUM_STRIPS][NUM_LEDS];
-byte heat[NUM_STRIPS][NUM_LEDS];
+bool _isErupting;
+int _lavaSpeed;
+
+CRGB _leds[NUM_STRIPS][NUM_LEDS];
+byte _heat[NUM_STRIPS][NUM_LEDS];
 
 void setup() 
 {
+    _isErupting = false;
+    _lavaSpeed = 1000;
+
 	addLeds();
 }
 
 void addLeds()
 {
 	//left side
-	FastLED.addLeds<CHIPSET, 18, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 5, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 19, COLOR_ORDER>(_leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 18, COLOR_ORDER>(_leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
 	
-	FastLED.addLeds<CHIPSET, 17, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 16, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 5, COLOR_ORDER>(_leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 17, COLOR_ORDER>(_leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
-	FastLED.addLeds<CHIPSET, 4, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 0, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 4, COLOR_ORDER>(_leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 0, COLOR_ORDER>(_leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
-	FastLED.addLeds<CHIPSET, 2, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 15, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 2, COLOR_ORDER>(_leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 15, COLOR_ORDER>(_leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
 	//right side
-	FastLED.addLeds<CHIPSET, 32, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 33, COLOR_ORDER>(leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 32, COLOR_ORDER>(_leds[4], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 33, COLOR_ORDER>(_leds[4], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
-	FastLED.addLeds<CHIPSET, 25, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 26, COLOR_ORDER>(leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 25, COLOR_ORDER>(_leds[5], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 26, COLOR_ORDER>(_leds[5], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
-	FastLED.addLeds<CHIPSET, 27, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 14, COLOR_ORDER>(leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 27, COLOR_ORDER>(_leds[6], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 14, COLOR_ORDER>(_leds[6], NUM_LEDS).setCorrection(TypicalLEDStrip);
 
-	FastLED.addLeds<CHIPSET, 12, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 13, COLOR_ORDER>(leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 12, COLOR_ORDER>(_leds[7], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	FastLED.addLeds<CHIPSET, 13, COLOR_ORDER>(_leds[7], NUM_LEDS).setCorrection(TypicalLEDStrip);
 }
-
 
 void loop() 
 {
     for (int i = 0; i < 8; i++)
     {
-        lavaFlow(i, false);
+        lavaFlow(i);
     }
 
     FastLED.show();
-    FastLED.delay(1000 / FRAMES_PER_SECOND);
+    // FastLED.delay(1000 / _lavaSpeed);
 }
 
-void lavaFlow(int stripIndex, bool Erupting) 
+void lavaFlow(int stripIndex) 
 {
 	// Step 1.  Cool down every cell a little
-	if (!Erupting)
+	if (!_isErupting)
 	{
 		for (int i = 0; i < NUM_LEDS; i++) 
 		{
 			int cooldown = random(0, ((COOLING * 10) / NUM_LEDS) + 2);
 			
-			if (cooldown > heat[stripIndex][i]) 
+			if (cooldown > _heat[stripIndex][i]) 
 			{
-				heat[stripIndex][i] = 0;
+				_heat[stripIndex][i] = 0;
 			} 
 			else 
 			{
-				heat[stripIndex][i] = heat[stripIndex][i] - cooldown;
+				_heat[stripIndex][i] = _heat[stripIndex][i] - cooldown;
 			}
 		}
 	}
@@ -111,7 +115,7 @@ void lavaFlow(int stripIndex, bool Erupting)
 	// Step 2.  Heat from each cell drifts 'down' and diffuses a little
 	for (int i = NUM_LEDS - 1; i >= 2; i--) 
 	{
-		heat[stripIndex][i] = (heat[stripIndex][i - 1] + heat[stripIndex][i - 2] + heat[stripIndex][i - 2]) / 3;
+		_heat[stripIndex][i] = (_heat[stripIndex][i - 1] + _heat[stripIndex][i - 2] + _heat[stripIndex][i - 2]) / 3;
 	}
 
 	// Step 3.  Randomly ignite new 'sparks' near the top
@@ -119,12 +123,12 @@ void lavaFlow(int stripIndex, bool Erupting)
 	{
 		int y = random(7);
 
-		heat[stripIndex][y] = heat[stripIndex][y] + random(160,255);
+		_heat[stripIndex][y] = _heat[stripIndex][y] + random(160,255);
 	}
 
 	// Step 4.  Convert heat to LED colors
 	for (int i = 0; i < NUM_LEDS; i++) 
 	{
-        leds[stripIndex][i] = HeatColor(heat[stripIndex][i]);
+        _leds[stripIndex][i] = HeatColor(_heat[stripIndex][i]);
 	}
 }
