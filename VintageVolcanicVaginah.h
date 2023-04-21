@@ -1,0 +1,7 @@
+#ifndef VINTAGE_VOLCANIC_VAGINAH_H
+#define VINTAGE_VOLCANIC_VAGINAH_H
+
+#define NUM_LEDS   300
+#define NUM_STRIPS 8
+
+#endif
