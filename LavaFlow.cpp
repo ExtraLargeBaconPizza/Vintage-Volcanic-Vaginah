@@ -7,11 +7,11 @@ int _currentStripIndex;
 void igniteNewSparks()
 {
 	// Randomly ignite new 'sparks' near the top
-    if (random(255) < SPARK_CHANCE) 
+    if (random(SPARK_CHANCE_MAX_ROLL) < SPARK_CHANCE_THRESHOLD) 
 	{
 		int y = random(7);
 
-		_heat[_currentStripIndex][y] = _heat[_currentStripIndex][y] + random(160, 255);
+		_heat[_currentStripIndex][y] = _heat[_currentStripIndex][y] + random(SPARK_HEAT_MIN, SPARK_HEAT_MAX);
 	}
 }
 

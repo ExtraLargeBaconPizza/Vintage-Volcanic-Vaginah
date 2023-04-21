@@ -17,7 +17,7 @@ void addLedStrips()
 	FastLED.addLeds<CHIPSET, 0,  COLOR_ORDER>(_leds[7], NUM_LEDS);
 }
 
-void initLedColorSettings()
+void setupLedSettings()
 {
     FastLED.setCorrection(COLOR_CORRECTION);
     FastLED.setBrightness(BRIGHTNESS);
@@ -26,7 +26,7 @@ void initLedColorSettings()
 void SetupLedStrips()
 {
     addLedStrips();
-    initLedColorSettings();
+    setupLedSettings();
 }
 
 void SetLedColor(int stripIndex, int ledIndex, CRGB ledColor)

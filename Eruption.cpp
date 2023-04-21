@@ -10,13 +10,10 @@ int _lastIncrementTime;
 void updateEruptionState()
 {   
     int seconds = millis() / 1000;
-    int currentMinute = seconds / 60 % RESET_INTERVAL_MINUTES;
+    int currentMinute = seconds / 60 % ERUPTION_RESET_INTERVAL_MINUTES;
 
     if (currentMinute < ERUPTION_LENGTH_MINUTES && _currentEruptionState != Erupting)
     {
-        Serial.print("Erupting");
-        Serial.println();
-
         _currentEruptionState = Erupting;
 
         _numberOfIncrements = 0;
@@ -26,9 +23,6 @@ void updateEruptionState()
     }
     else if (currentMinute >= ERUPTION_LENGTH_MINUTES && _currentEruptionState != Flowing)
     {
-        Serial.print("Flowing");
-        Serial.println();
-
         _currentEruptionState = Flowing;
     }
 }
@@ -46,13 +40,6 @@ void updateCoolingAndDelay()
         
         _cooling += COOLING_INCREMENT;
         _speedDelay += SPEED_DELAY_INCREMENT;
-
-        Serial.print("_numberOfIncrements: ");
-        Serial.print(_numberOfIncrements);
-
-        Serial.print(" seconds: ");
-        Serial.print(seconds);
-        Serial.println();
 
         _lastIncrementTime = seconds;
     }

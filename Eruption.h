@@ -3,12 +3,13 @@
 
 #include <Arduino.h>
 
-#define ERUPTION_LENGTH_MINUTES     1
-#define MAX_NUMBER_OF_INCREMENTS    24
-#define SPEED_DELAY_INCREMENT       1
-#define COOLING_INCREMENT           10
-#define INCREMENT_INTERVAL_SECONDS  10
-#define RESET_INTERVAL_MINUTES      20
+// Eruption Settings
+#define ERUPTION_LENGTH_MINUTES         1
+#define MAX_NUMBER_OF_INCREMENTS        24
+#define SPEED_DELAY_INCREMENT           1
+#define COOLING_INCREMENT               10
+#define INCREMENT_INTERVAL_SECONDS      10
+#define ERUPTION_RESET_INTERVAL_MINUTES 20
 
 enum EruptionState 
 {
