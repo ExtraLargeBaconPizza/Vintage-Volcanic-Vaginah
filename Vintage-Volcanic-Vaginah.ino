@@ -2,133 +2,199 @@
     Board: NodeMCU-ESP32s
 	Upload Speed: 921600
 	Pinout Reference: https://esphome.io/devices/nodemcu_esp32.html
+    Ws2815 Data Sheet: https://www.led-stuebchen.de/download/WS2815.pdf
 
     Notes:
     - Cannot use loop in addLeds function because the pin number must be a runtime constant. Gross, I know.
     - Ensure esp32 is grounded to psu, even if powered by seperate usb
-    - ws2815 are unidirectional. You must connect to the female end of the strip to a male JST SM it from the board
-    - Parrallel output  - writing to each pixel takes 30µs, so FastLED.show() takes a very long time because it has to iterate over all pixels and strips in series (ie one at a time)
+    - Ws2815 are unidirectional. You must connect to the female end of the strip to a 4-pin  male JST-SM from the board
+    - Parrallel output: - writing to each pixel takes 30µs, so FastLED.show() can take while because it has to iterate over all pixels and strips in series (ie one at a time)
                         - parrallel will write to strips in parrallel and must be enabled
                         - reddit explination: https://www.reddit.com/r/FastLED/comments/aqlb94/troubleshooting_slow_performance_tied_to/
                         - https://github.com/FastLED/FastLED/wiki/Parallel-Output
                         - solution: https://www.reddit.com/r/FastLED/comments/klw88g/are_there_magical_words_to_summon_parallel_output/
-    - pins used (green wire / blue wire):
-		- 19 / 18 
-		- 5 / 17 
-		- 4 / 0
-		- 2 / 15
-
-		- 32 / 33
-		- 25 / 26
-		- 27 / 14
-		- 12 / 13
+    - Backup data line: - Do not wire backup data line to seperate pins. This can cause noise over longer wire lengths, which can result in random flickering
+                        - Either wire both data lines to the same pin or wire the backup data line directly to the ground (as close to strip as possible)
+                        - https://www.reddit.com/r/WLED/comments/yw10qa/ws2815_backup_data_line_question/
 */
 
 #include <FastLED.h>
+#include "Test2.h"
 
-// Enable parrallel output
-#define FASTLED_ESP32_I2S true
+// Enable Parrallel Output
+#define FASTLED_ESP32_I2S        true
 #define FASTLED_RMT_MAX_CHANNELS 8
 
-#define COLOR_ORDER RGB
-#define CHIPSET     WS2811
-#define NUM_LEDS    300
-#define NUM_STRIPS 	8
+// LED Settings
+#define CHIPSET          WS2811
+#define COLOR_ORDER      RGB
+#define NUM_LEDS         300
+#define NUM_STRIPS 	     8
+#define COLOR_CORRECTION CRGB(255, 100, 240)
+#define BRIGHTNESS       255
 
-#define COOLING 55
-#define SPARKLING 120
+// Lava Settings
+#define SPARK_CHANCE                120
+#define ERUPTION_LENGTH_MINUTES     20
+#define MAX_COOLING_AND_SPEED_DELAY 20
+#define INCREMENT_INTERVAL_SECONDS  10
+#define RESET_INTERVAL_MINUTES      20
 
-bool _isErupting;
-int _lavaSpeed;
+enum EruptionState 
+{
+    Unknown,
+    Erupting,
+    Flowing,
+};
+
+EruptionState _eruptionState;
 
 CRGB _leds[NUM_STRIPS][NUM_LEDS];
 byte _heat[NUM_STRIPS][NUM_LEDS];
 
+int _currentStripIndex;
+int _coolingAndSpeedDelay;
+int _lastCoolingIncrementTime;
+
 void setup() 
 {
-    _isErupting = false;
-    _lavaSpeed = 1000;
+    Serial.begin(115200);
 
-	addLeds();
+	setupLedStrips();
 }
 
-void addLeds()
+void setupLedStrips()
 {
-	//left side
-	FastLED.addLeds<CHIPSET, 19, COLOR_ORDER>(_leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 18, COLOR_ORDER>(_leds[0], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	
-	FastLED.addLeds<CHIPSET, 5, COLOR_ORDER>(_leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 17, COLOR_ORDER>(_leds[1], NUM_LEDS).setCorrection(TypicalLEDStrip);
+	// left side
+	FastLED.addLeds<CHIPSET, 32, COLOR_ORDER>(_leds[0], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 25, COLOR_ORDER>(_leds[1], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 27, COLOR_ORDER>(_leds[2], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 12, COLOR_ORDER>(_leds[3], NUM_LEDS);
+    
+	// right side
+	FastLED.addLeds<CHIPSET, 19, COLOR_ORDER>(_leds[4], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 5,  COLOR_ORDER>(_leds[5], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 16, COLOR_ORDER>(_leds[6], NUM_LEDS);
+	FastLED.addLeds<CHIPSET, 0,  COLOR_ORDER>(_leds[7], NUM_LEDS);
 
-	FastLED.addLeds<CHIPSET, 4, COLOR_ORDER>(_leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 0, COLOR_ORDER>(_leds[2], NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	FastLED.addLeds<CHIPSET, 2, COLOR_ORDER>(_leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 15, COLOR_ORDER>(_leds[3], NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	//right side
-	FastLED.addLeds<CHIPSET, 32, COLOR_ORDER>(_leds[4], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 33, COLOR_ORDER>(_leds[4], NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	FastLED.addLeds<CHIPSET, 25, COLOR_ORDER>(_leds[5], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 26, COLOR_ORDER>(_leds[5], NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	FastLED.addLeds<CHIPSET, 27, COLOR_ORDER>(_leds[6], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 14, COLOR_ORDER>(_leds[6], NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-	FastLED.addLeds<CHIPSET, 12, COLOR_ORDER>(_leds[7], NUM_LEDS).setCorrection(TypicalLEDStrip);
-	FastLED.addLeds<CHIPSET, 13, COLOR_ORDER>(_leds[7], NUM_LEDS).setCorrection(TypicalLEDStrip);
+    // color correction needed otherwise it will be too green
+    FastLED.setCorrection(CRGB(255, 100, 240));
+    FastLED.setBrightness(BRIGHTNESS);
 }
 
 void loop() 
 {
-    for (int i = 0; i < 8; i++)
-    {
-        lavaFlow(i);
-    }
+    updateEruptionState();
+    updateCoolingAndDelay();
+    updateLedStrips();
 
     FastLED.show();
-    // FastLED.delay(1000 / _lavaSpeed);
+    FastLED.delay(_coolingAndSpeedDelay);
 }
 
-void lavaFlow(int stripIndex) 
-{
-	// Step 1.  Cool down every cell a little
-	if (!_isErupting)
-	{
-		for (int i = 0; i < NUM_LEDS; i++) 
-		{
-			int cooldown = random(0, ((COOLING * 10) / NUM_LEDS) + 2);
-			
-			if (cooldown > _heat[stripIndex][i]) 
-			{
-				_heat[stripIndex][i] = 0;
-			} 
-			else 
-			{
-				_heat[stripIndex][i] = _heat[stripIndex][i] - cooldown;
-			}
-		}
-	}
-	
-	// Step 2.  Heat from each cell drifts 'down' and diffuses a little
-	for (int i = NUM_LEDS - 1; i >= 2; i--) 
-	{
-		_heat[stripIndex][i] = (_heat[stripIndex][i - 1] + _heat[stripIndex][i - 2] + _heat[stripIndex][i - 2]) / 3;
-	}
+void updateEruptionState()
+{   
+    int seconds = millis() / 1000;
+    int currentMinute = seconds / 60 % RESET_INTERVAL_MINUTES;
 
-	// Step 3.  Randomly ignite new 'sparks' near the top
-	if (random(255) < SPARKLING) 
+    if (currentMinute < ERUPTION_LENGTH_MINUTES && _eruptionState != Erupting)
+    {
+        Serial.print("Erupting");
+        Serial.println();
+
+        _eruptionState = Erupting;
+        _coolingAndSpeedDelay = 0;
+        _lastCoolingIncrementTime = seconds;
+    }
+    else if (currentMinute >= ERUPTION_LENGTH_MINUTES && _eruptionState != Flowing)
+    {
+        Serial.print("Flowing");
+        Serial.println();
+
+        _eruptionState = Flowing;
+    }
+}
+
+void updateCoolingAndDelay()
+{
+    if (_eruptionState != Flowing) return;
+    if (_coolingAndSpeedDelay >= MAX_COOLING_AND_SPEED_DELAY) return;
+
+    int seconds = millis() / 1000;
+
+    if (seconds - _lastCoolingIncrementTime >= INCREMENT_INTERVAL_SECONDS)
+    {
+        _coolingAndSpeedDelay++;
+
+        Serial.print("_coolingAndDelay: ");
+        Serial.print(_coolingAndSpeedDelay);
+
+        Serial.print(" seconds: ");
+        Serial.print(seconds);
+        Serial.println();
+
+        _lastCoolingIncrementTime = seconds;
+    }
+}
+
+void updateLedStrips()
+{
+    for (int i = 0; i < 8; i++)
+    {
+        _currentStripIndex = i;
+
+        lavaFlow();
+    }
+}
+
+void lavaFlow() 
+{
+    cooling();
+	driftHeatDown();
+	igniteNewSparks();
+	setHeatToLeds();
+}
+
+void igniteNewSparks()
+{
+	// Randomly ignite new 'sparks' near the top
+    if (random(255) < SPARK_CHANCE) 
 	{
 		int y = random(7);
 
-		_heat[stripIndex][y] = _heat[stripIndex][y] + random(160,255);
+		_heat[_currentStripIndex][y] = _heat[_currentStripIndex][y] + random(160, 255);
 	}
+}
 
-	// Step 4.  Convert heat to LED colors
-	for (int i = 0; i < NUM_LEDS; i++) 
+void driftHeatDown()
+{
+	// Heat from each cell drifts 'down' and diffuses a little
+    for (int i = NUM_LEDS - 1; i >= 2; i--) 
 	{
-        _leds[stripIndex][i] = HeatColor(_heat[stripIndex][i]);
+		_heat[_currentStripIndex][i] = (_heat[_currentStripIndex][i - 1] + _heat[_currentStripIndex][i - 2] + _heat[_currentStripIndex][i - 3]) / 3;
+	}
+}
+
+void cooling()
+{
+	// Cool down every cell a little
+    if (_eruptionState == Erupting) return;
+
+    for (int i = 0; i < NUM_LEDS; i++) 
+    {
+        byte currentHeat = _heat[_currentStripIndex][i];
+
+        int cooldown = random(0, ((_coolingAndSpeedDelay * 10) / NUM_LEDS) + 2);
+        
+        _heat[_currentStripIndex][i] = (currentHeat < cooldown) ? 0 : currentHeat - cooldown;
+    }
+}
+
+void setHeatToLeds()
+{
+	// Convert heat to LED colors
+    for (int i = 0; i < NUM_LEDS; i++) 
+	{
+        _leds[_currentStripIndex][i] = HeatColor(_heat[_currentStripIndex][i]);
 	}
 }
